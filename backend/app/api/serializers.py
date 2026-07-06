@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Task, AnnotationImage
+from .models import Task, AnnotationImage, PolygonAnnotation
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -11,4 +11,10 @@ class TaskSerializer(serializers.ModelSerializer):
 class AnnotationImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnnotationImage
+        fields = '__all__'
+
+
+class PolygonAnnotationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PolygonAnnotation
         fields = '__all__'

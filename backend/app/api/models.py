@@ -57,3 +57,22 @@ class AnnotationImage(models.Model):
 
     def __str__(self):
         return f"Image #{self.id} uploaded by {self.user.username}"
+    
+class PolygonAnnotation(models.Model):
+    """
+    Represents a specific closed multi-point polygon shape traced 
+    manually over an explicit parent target image block.
+    """
+    image = models.ForeignKey(
+        AnnotationImage, 
+        on_delete=models.CASCADE, 
+        related_name='polygons',
+        help_text="The parent background digital image surface."
+    )
+    points = models.JSONField(
+        help_text="Normalized relative coordinates list schema: [[x1, y1], [x2, y2], ...]"
+    )
+    label = models.CharField(max_length=100, blank=True, help_text="Optional semantic class label identifier.")
+
+    def __str__(self):
+        return f"Polygon {self.id} on Image #{self.image.id}"
