@@ -35,3 +35,25 @@ class Task(models.Model):
 
     def __str__(self):
         return f"{self.title} | {self.status} ({self.priority})"
+    
+class AnnotationImage(models.Model):
+    """
+    Stores an image asset uploaded to the backend server, 
+    intended to host vector structural markings.
+    """
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='images'
+    )
+    image = models.ImageField(
+        upload_to='annotations/',
+        help_text="Binary image framework target payload."
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"Image #{self.id} uploaded by {self.user.username}"
