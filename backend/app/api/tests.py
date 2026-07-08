@@ -9,9 +9,71 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 from rest_framework import status
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 from .models import Task, AnnotationImage, PolygonAnnotation
+
+
+class AuthEndpointTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='authuser', email='auth@example.com', password='password')
+        self.client = APIClient()
+        self.signup_url = reverse('signup')
+        self.login_url = reverse('login')
+        self.logout_url = reverse('logout')
+        self.current_user_url = reverse('current_user')
+
+    def test_signup_with_valid_data(self):
+        payload = {
+            'username': 'newuser',
+            'email': 'newuser@example.com',
+            'password': 'newpassword',
+        }
+
+        response = self.client.post(self.signup_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('token', response.data)
+        self.assertEqual(response.data['user']['email'], 'newuser@example.com')
+        self.assertTrue(User.objects.filter(username='newuser').exists())
+
+    def test_signup_with_duplicate_email(self):
+        payload = {
+            'username': 'duplicateuser',
+            'email': 'auth@example.com',
+            'password': 'password',
+        }
+
+        response = self.client.post(self.signup_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('detail', response.data)
+
+    def test_login_with_valid_credentials(self):
+        response = self.client.post(self.login_url, {'email': 'auth@example.com', 'password': 'password'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('token', response.data)
+        self.assertEqual(response.data['user']['email'], 'auth@example.com')
+
+    def test_login_with_invalid_credentials(self):
+        response = self.client.post(self.login_url, {'email': 'auth@example.com', 'password': 'wrong'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_current_user_requires_authentication(self):
+        response = self.client.get(self.current_user_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_logout_removes_token(self):
+        token, _ = Token.objects.get_or_create(user=self.user)
+        auth_client = APIClient()
+        auth_client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+
+        response = auth_client.post(self.logout_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(Token.objects.filter(key=token.key).exists())
 
 
 class TaskEndpointTests(TestCase):
@@ -26,7 +88,7 @@ class TaskEndpointTests(TestCase):
         Task.objects.create(user=self.user, title='Task 1', due_date='2026-12-31')
         Task.objects.create(user=self.user, title='Task 2', due_date='2026-12-31')
 
-        response = self.client.get(self.list_url)
+        response = self.auth_client.get(self.list_url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
@@ -51,7 +113,7 @@ class TaskEndpointTests(TestCase):
         task = Task.objects.create(user=self.user, title='Retrieve Task', due_date='2026-12-31')
         url = reverse('task-detail', args=[task.id])
 
-        response = self.client.get(url)
+        response = self.auth_client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], task.title)
@@ -101,7 +163,7 @@ class AnnotationImageEndpointTests(TestCase):
     def test_list_annotation_images(self):
         AnnotationImage.objects.create(user=self.user, image=self._create_image_file())
 
-        response = self.client.get(self.list_url)
+        response = self.auth_client.get(self.list_url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
@@ -123,7 +185,7 @@ class AnnotationImageEndpointTests(TestCase):
         image = AnnotationImage.objects.create(user=self.user, image=self._create_image_file())
         url = reverse('annotationimage-detail', args=[image.id])
 
-        response = self.client.get(url)
+        response = self.auth_client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['id'], image.id)
@@ -157,7 +219,7 @@ class PolygonAnnotationEndpointTests(TestCase):
     def test_list_polygon_annotations(self):
         PolygonAnnotation.objects.create(image=self.image, points=[[0.1, 0.1], [0.2, 0.2]], label='Test')
 
-        response = self.client.get(self.list_url)
+        response = self.auth_client.get(self.list_url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
@@ -179,7 +241,7 @@ class PolygonAnnotationEndpointTests(TestCase):
         polygon = PolygonAnnotation.objects.create(image=self.image, points=[[0.1, 0.1], [0.2, 0.2]], label='Detail')
         url = reverse('polygonannotation-detail', args=[polygon.id])
 
-        response = self.client.get(url)
+        response = self.auth_client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['label'], polygon.label)
