@@ -91,7 +91,28 @@ class TaskEndpointTests(TestCase):
         response = self.auth_client.get(self.list_url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data['count'], 2)
+        self.assertEqual(len(response.data['results']), 2)
+
+    def test_list_tasks_filtered_by_due_date(self):
+        Task.objects.create(user=self.user, title='Task 1', due_date='2026-12-31')
+        Task.objects.create(user=self.user, title='Task 2', due_date='2027-01-01')
+
+        response = self.auth_client.get(self.list_url, {'due_date': '2026-12-31'})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['title'], 'Task 1')
+
+    def test_list_tasks_filtered_by_date_range(self):
+        Task.objects.create(user=self.user, title='Task 1', due_date='2026-12-31')
+        Task.objects.create(user=self.user, title='Task 2', due_date='2027-01-02')
+
+        response = self.auth_client.get(self.list_url, {'from_date': '2026-12-30', 'to_date': '2027-01-01'})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['title'], 'Task 1')
 
     def test_create_task_authenticated(self):
         payload = {
@@ -145,8 +166,8 @@ class TaskEndpointTests(TestCase):
         response = self.auth_client.get(self.list_url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['title'], 'My Task')
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['title'], 'My Task')
 
     def test_cannot_access_another_users_task(self):
         other_user = User.objects.create_user(username='someoneelse', password='password')
@@ -186,7 +207,8 @@ class AnnotationImageEndpointTests(TestCase):
         response = self.auth_client.get(self.list_url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(len(response.data['results']), 1)
 
     def test_create_annotation_image_authenticated(self):
         payload = {'user': self.user.id, 'image': self._create_image_file()}
@@ -242,7 +264,26 @@ class PolygonAnnotationEndpointTests(TestCase):
         response = self.auth_client.get(self.list_url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(len(response.data['results']), 1)
+
+    def test_list_polygon_annotations_filtered_by_image(self):
+        other_image = AnnotationImage.objects.create(
+            user=self.user,
+            image=SimpleUploadedFile(
+                'other.png',
+                b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0bIDAT\x08\xd7c\xf8\x0f\x00\x01\x01\x01\x00\x18\xdd\x8d\x83\x00\x00\x00\x00IEND\xaeB`\x82',
+                content_type='image/png'
+            ),
+        )
+        PolygonAnnotation.objects.create(image=self.image, points=[[0.1, 0.1], [0.2, 0.2]], label='Test')
+        PolygonAnnotation.objects.create(image=other_image, points=[[0.3, 0.3], [0.4, 0.4]], label='Other')
+
+        response = self.auth_client.get(self.list_url, {'image': self.image.id})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['label'], 'Test')
 
     def test_create_polygon_annotation_authenticated(self):
         payload = {

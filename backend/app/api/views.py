@@ -123,7 +123,19 @@ class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Task.objects.filter(user=self.request.user).order_by('-id')
+        queryset = Task.objects.filter(user=self.request.user).order_by('-id')
+        due_date = self.request.query_params.get('due_date')
+        from_date = self.request.query_params.get('from_date')
+        to_date = self.request.query_params.get('to_date')
+
+        if due_date:
+            queryset = queryset.filter(due_date=due_date)
+        if from_date:
+            queryset = queryset.filter(due_date__gte=from_date)
+        if to_date:
+            queryset = queryset.filter(due_date__lte=to_date)
+
+        return queryset
 
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
@@ -163,9 +175,17 @@ class PolygonAnnotationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return PolygonAnnotation.objects.filter(
+        queryset = PolygonAnnotation.objects.filter(
             image__user=self.request.user
         ).order_by('-id')
+        image_id = self.request.query_params.get('image')
+        if image_id:
+            queryset = queryset.filter(image_id=image_id)
+        return queryset
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        return get_object_or_404(queryset, pk=self.kwargs['pk'])
 
     def perform_create(self, serializer):
         image = serializer.validated_data.get('image')
