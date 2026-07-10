@@ -137,6 +137,26 @@ class TaskEndpointTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Task.objects.filter(id=task.id).exists())
 
+    def test_list_only_returns_current_users_tasks(self):
+        other_user = User.objects.create_user(username='anotheruser', password='password')
+        Task.objects.create(user=self.user, title='My Task', due_date='2026-12-31')
+        Task.objects.create(user=other_user, title='Other Task', due_date='2026-12-31')
+
+        response = self.auth_client.get(self.list_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['title'], 'My Task')
+
+    def test_cannot_access_another_users_task(self):
+        other_user = User.objects.create_user(username='someoneelse', password='password')
+        task = Task.objects.create(user=other_user, title='Secret Task', due_date='2026-12-31')
+        url = reverse('task-detail', args=[task.id])
+
+        response = self.auth_client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
 
 class AnnotationImageEndpointTests(TestCase):
     def setUp(self):

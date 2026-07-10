@@ -1,5 +1,6 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets, permissions
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
@@ -123,6 +124,10 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Task.objects.filter(user=self.request.user).order_by('-id')
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        return get_object_or_404(queryset, pk=self.kwargs['pk'])
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
