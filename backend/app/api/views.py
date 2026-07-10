@@ -141,8 +141,20 @@ class AnnotationImageViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return AnnotationImage.objects.filter(user=self.request.user).order_by('-id')
 
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        return get_object_or_404(queryset, pk=self.kwargs['pk'])
+
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    def perform_destroy(self, instance):
+        # Remove file from storage when deleting the model
+        try:
+            if instance.image:
+                instance.image.delete(save=False)
+        finally:
+            instance.delete()
 
 
 class PolygonAnnotationViewSet(viewsets.ModelViewSet):
