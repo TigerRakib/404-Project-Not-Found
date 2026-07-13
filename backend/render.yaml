@@ -2,16 +2,25 @@ services:
   - type: web
     name: vairadiologi-backend
     runtime: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
     startCommand: gunicorn app.wsgi:application --bind 0.0.0.0:$PORT --workers 3
+    healthCheckPath: /health/
     envVars:
       - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: DJANGO_DEBUG
         value: "False"
       - key: DJANGO_ALLOWED_HOSTS
-        sync: false
+        value: "vai-rad-backend.onrender.com"
       - key: CORS_ALLOWED_ORIGINS
-        sync: false
+        value: "https://vai-rad-backend.onrender.com"
       - key: PYTHON_VERSION
         value: "3.10"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vairadiologi-db
+          property: connectionString
+  - type: postgresql
+    name: vairadiologi-db
+    plan: free
+    databaseName: vairadiologi
