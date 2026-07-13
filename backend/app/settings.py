@@ -24,9 +24,12 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() == "true"
 
-ALLOWED_HOSTS = os.environ.get(
-    "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,vai-rad-backend.onrender.com"
-).split(",")
+_env_hosts = os.environ.get("DJANGO_ALLOWED_HOSTS", "")
+ALLOWED_HOSTS = (
+    [h.strip() for h in _env_hosts.split(",") if h.strip()]
+    if _env_hosts
+    else ["localhost", "127.0.0.1", ".onrender.com"]
+)
 
 
 # Application definition

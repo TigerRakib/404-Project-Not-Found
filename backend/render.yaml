@@ -11,9 +11,9 @@ services:
       - key: DJANGO_DEBUG
         value: "False"
       - key: DJANGO_ALLOWED_HOSTS
-        value: "vai-rad-backend.onrender.com"
+        value: ".onrender.com"
       - key: CORS_ALLOWED_ORIGINS
-        value: "https://vai-rad-backend.onrender.com"
+        value: "*"
       - key: PYTHON_VERSION
         value: "3.10"
       - key: DATABASE_URL
